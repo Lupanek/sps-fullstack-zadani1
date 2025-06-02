@@ -1,6 +1,6 @@
-# Jméno Příjmení
+#   Jiří Dočekal
 ---
-## Zvolené rozšíření
+## Evidence návštěv v zoo
 - Popisek
 - Popisek2
 ---
