@@ -1,88 +1,635 @@
 <!DOCTYPE html>
-<html lang="cs"><head>
-    <meta charset="UTF-8">    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Todo List</title></head>
-<body>    <h1>Todo List</h1>
-        <section>
-        <h2>Přidat nový úkol</h2>        <form id="todo-form">
-            <div>                <label for="name">Název úkolu:</label>
-                <input type="text" id="name" name="name" required>            </div>
-            <div>                <label for="description">Popis:</label>
-                <textarea id="description" name="description"></textarea>            </div>
-            <div>                <button type="submit">Přidat úkol</button>
-            </div>        </form>
-    </section>
-    <section>        <h2>Seznam úkolů</h2>
-        <ul id="todo-list">            <!-- Zde se budou zobrazovat úkoly -->
-        </ul>    </section>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Evidence návštěv v zoo - aplikace pro správu návštěvníků, zvířat a jejich návštěv">
+    <title>Evidence návštěv v zoo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Evidence návštěv v zoo</h1>
+            <p class="app-description">Jednoduchá aplikace pro správu návštěvníků, zvířat a jejich návštěv</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Sekce pro návštěvníky -->
+            <div class="section" id="visitors-section">
+                <h2>Návštěvníci</h2>
+                <form id="visitor-form">
+                    <input type="hidden" id="visitor-id">
+                    <div>
+                        <label for="visitor-firstname">Jméno:</label>
+                        <input type="text" id="visitor-firstname" required>
+                    </div>
+                    <div>
+                        <label for="visitor-lastname">Příjmení:</label>
+                        <input type="text" id="visitor-lastname" required>
+                    </div>
+                    <div>
+                        <button type="submit" id="visitor-submit">Přidat návštěvníka</button>
+                        <button type="button" id="visitor-cancel" style="display: none;">Zrušit</button>
+                    </div>
+                </form>
+                <ul id="visitors-list"></ul>
+            </div>
+
+            <!-- Sekce pro zvířata -->
+            <div class="section" id="animals-section">
+                <h2>Zvířata</h2>
+                <form id="animal-form">
+                    <input type="hidden" id="animal-id">
+                    <div>
+                        <label for="animal-name">Jméno:</label>
+                        <input type="text" id="animal-name" required>
+                    </div>
+                    <div>
+                        <label for="animal-species">Druh:</label>
+                        <input type="text" id="animal-species" required>
+                    </div>
+                    <div>
+                        <button type="submit" id="animal-submit">Přidat zvíře</button>
+                        <button type="button" id="animal-cancel" style="display: none;">Zrušit</button>
+                    </div>
+                </form>
+                <ul id="animals-list"></ul>
+            </div>
+
+            <!-- Sekce pro návštěvy -->
+            <div class="section" id="visits-section">
+                <h2>Návštěvy</h2>
+                <form id="visit-form">
+                    <div>
+                        <label for="visit-visitor">Návštěvník:</label>
+                        <select id="visit-visitor" required></select>
+                    </div>
+                    <div>
+                        <label for="visit-animal">Zvíře:</label>
+                        <select id="visit-animal" required></select>
+                    </div>
+                    <div>
+                        <label for="visit-date">Datum návštěvy:</label>
+                        <input type="date" id="visit-date" required>
+                    </div>
+                    <div>
+                        <button type="submit" id="visit-submit">Přidat návštěvu</button>
+                    </div>
+                </form>
+                <ul id="visits-list"></ul>
+            </div>
+        </div>
+
+        <!-- Modal pro detail -->
+        <div id="detail-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2 id="detail-title">Detail</h2>
+                <div id="detail-content"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2024 Evidence návštěv v zoo | Vytvořeno pro školní projekt</p>
+        </footer>
+    </div>
+
     <script>
-        // Načtení všech úkolů při načtení stránky        document.addEventListener('DOMContentLoaded', fetchTodos);
-                // Zpracování formuláře pro přidání úkolu
-        document.getElementById('todo-form').addEventListener('submit', async (e) => {            e.preventDefault();
-                        const name = document.getElementById('name').value;
-            const description = document.getElementById('description').value;            
-            try {                const response = await fetch('/api/items', {
-                    method: 'POST',                    headers: {
-                        'Content-Type': 'application/json'                    },
-                    body: JSON.stringify({ name, description })                });
-                                if (response.ok) {
-                    // Vyčistit formulář                    document.getElementById('todo-form').reset();
-                    // Znovu načíst seznam úkolů                    fetchTodos();
-                } else {                    alert('Chyba při přidávání úkolu');
-                }            } catch (error) {
-                console.error('Chyba:', error);            }
-        });        
-        // Funkce pro načtení všech úkolů        async function fetchTodos() {
-            try {                const response = await fetch('/api/items');
-                const todos = await response.json();                
-                const todoList = document.getElementById('todo-list');                todoList.innerHTML = '';
-                                todos.forEach(todo => {
-                    const li = document.createElement('li');                    li.innerHTML = `<strong>${todo.name}</strong>: ${todo.description || ''}`;
-                    todoList.appendChild(li);                });
-            } catch (error) {                console.error('Chyba při načítání úkolů:', error);
-            }        
+        // Formátování data
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('cs-CZ');
+        }
+
+        // Inicializace při načtení stránky
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchVisitors();
+            fetchAnimals();
+            fetchVisits();
+            
+            // Modal setup
+            const modal = document.getElementById('detail-modal');
+            const closeBtn = document.getElementsByClassName('close')[0];
+            
+            closeBtn.onclick = function() {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.style.display = "none";
+                }, 300); // Počkáme na dokončení animace
+            }
+            
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.classList.remove('show');
+                    setTimeout(() => {
+                        modal.style.display = "none";
+                    }, 300); // Počkáme na dokončení animace
+                }
+            }
+
+            // Event listener pro formulář návštěvníků
+            document.getElementById('visitor-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const id = document.getElementById('visitor-id').value;
+                const firstname = document.getElementById('visitor-firstname').value;
+                const lastname = document.getElementById('visitor-lastname').value;
+                
+                if (id) {
+                    // Editace existujícího návštěvníka
+                    try {
+                        const response = await fetch(`/api/visitors/${id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ firstname, lastname })
+                        });
+                        
+                        if (response.ok) {
+                            resetVisitorForm();
+                            fetchVisitors();
+                        } else {
+                            alert('Chyba při aktualizaci návštěvníka');
+                        }
+                    } catch (error) {
+                        console.error('Chyba:', error);
+                    }
+                } else {
+                    // Přidání nového návštěvníka
+                    try {
+                        const response = await fetch('/api/visitors', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ firstname, lastname })
+                        });
+                        
+                        if (response.ok) {
+                            resetVisitorForm();
+                            fetchVisitors();
+                        } else {
+                            alert('Chyba při přidávání návštěvníka');
+                        }
+                    } catch (error) {
+                        console.error('Chyba:', error);
+                    }
+                }
+            });
+            
+            // Event listener pro zrušení editace návštěvníka
+            document.getElementById('visitor-cancel').addEventListener('click', resetVisitorForm);
+            
+            // Event listener pro formulář zvířat
+            document.getElementById('animal-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const id = document.getElementById('animal-id').value;
+                const name = document.getElementById('animal-name').value;
+                const species = document.getElementById('animal-species').value;
+                
+                if (id) {
+                    // Editace existujícího zvířete
+                    try {
+                        const response = await fetch(`/api/animals/${id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ name, species })
+                        });
+                        
+                        if (response.ok) {
+                            resetAnimalForm();
+                            fetchAnimals();
+                        } else {
+                            alert('Chyba při aktualizaci zvířete');
+                        }
+                    } catch (error) {
+                        console.error('Chyba:', error);
+                    }
+                } else {
+                    // Přidání nového zvířete
+                    try {
+                        const response = await fetch('/api/animals', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ name, species })
+                        });
+                        
+                        if (response.ok) {
+                            resetAnimalForm();
+                            fetchAnimals();
+                        } else {
+                            alert('Chyba při přidávání zvířete');
+                        }
+                    } catch (error) {
+                        console.error('Chyba:', error);
+                    }
+                }
+            });
+            
+            // Event listener pro zrušení editace zvířete
+            document.getElementById('animal-cancel').addEventListener('click', resetAnimalForm);
+            
+            // Event listener pro formulář návštěv
+            document.getElementById('visit-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const visitor_id = document.getElementById('visit-visitor').value;
+                const animal_id = document.getElementById('visit-animal').value;
+                const visit_date = document.getElementById('visit-date').value;
+                
+                if (!visitor_id || !animal_id || !visit_date) {
+                    alert('Všechna pole jsou povinná');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/visits', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ visitor_id, animal_id, visit_date })
+                    });
+                    
+                    if (response.ok) {
+                        document.getElementById('visit-form').reset();
+                        fetchVisits();
+                    } else {
+                        const errorData = await response.json();
+                        alert(`Chyba při přidávání návštěvy: ${errorData.error || 'Neznámá chyba'}`);
+                    }
+                } catch (error) {
+                    console.error('Chyba:', error);
+                    alert('Došlo k chybě při komunikaci se serverem');
+                }
+            });
+        });
+        
+        // Funkce pro resetování formuláře návštěvníků
+        function resetVisitorForm() {
+            document.getElementById('visitor-id').value = '';
+            document.getElementById('visitor-form').reset();
+            document.getElementById('visitor-submit').textContent = 'Přidat návštěvníka';
+            document.getElementById('visitor-cancel').style.display = 'none';
+        }
+        
+        // Funkce pro resetování formuláře zvířat
+        function resetAnimalForm() {
+            document.getElementById('animal-id').value = '';
+            document.getElementById('animal-form').reset();
+            document.getElementById('animal-submit').textContent = 'Přidat zvíře';
+            document.getElementById('animal-cancel').style.display = 'none';
+        }
+        
+        // Funkce pro načtení návštěvníků
+        async function fetchVisitors() {
+            try {
+                const response = await fetch('/api/visitors');
+                const visitors = await response.json();
+                
+                const visitorsList = document.getElementById('visitors-list');
+                visitorsList.innerHTML = '';
+                
+                visitors.forEach(visitor => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${visitor.firstname} ${visitor.lastname}</span>
+                        <div class="actions">
+                            <button class="detail-btn" onclick="showVisitorDetail(${visitor.id})">Detail</button>
+                            <button class="edit-btn" onclick="editVisitor(${visitor.id})">Upravit</button>
+                            <button class="delete-btn" onclick="deleteVisitor(${visitor.id})">Smazat</button>
+                        </div>
+                    `;
+                    visitorsList.appendChild(li);
+                });
+                
+                // Aktualizace select boxu pro návštěvy
+                const visitorSelect = document.getElementById('visit-visitor');
+                visitorSelect.innerHTML = '';
+                
+                visitors.forEach(visitor => {
+                    const option = document.createElement('option');
+                    option.value = visitor.id;
+                    option.textContent = `${visitor.firstname} ${visitor.lastname}`;
+                    visitorSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Chyba při načítání návštěvníků:', error);
+            }
+        }
+        
+        // Funkce pro načtení zvířat
+        async function fetchAnimals() {
+            try {
+                const response = await fetch('/api/animals');
+                const animals = await response.json();
+                
+                const animalsList = document.getElementById('animals-list');
+                animalsList.innerHTML = '';
+                
+                animals.forEach(animal => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${animal.name} (${animal.species})</span>
+                        <div class="actions">
+                            <button class="detail-btn" onclick="showAnimalDetail(${animal.id})">Detail</button>
+                            <button class="edit-btn" onclick="editAnimal(${animal.id})">Upravit</button>
+                            <button class="delete-btn" onclick="deleteAnimal(${animal.id})">Smazat</button>
+                        </div>
+                    `;
+                    animalsList.appendChild(li);
+                });
+                
+                // Aktualizace select boxu pro návštěvy
+                const animalSelect = document.getElementById('visit-animal');
+                animalSelect.innerHTML = '';
+                
+                animals.forEach(animal => {
+                    const option = document.createElement('option');
+                    option.value = animal.id;
+                    option.textContent = `${animal.name} (${animal.species})`;
+                    animalSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Chyba při načítání zvířat:', error);
+            }
+        }
+        
+        // Funkce pro načtení návštěv
+        async function fetchVisits() {
+            try {
+                const response = await fetch('/api/visits');
+                const visits = await response.json();
+                
+                const visitsList = document.getElementById('visits-list');
+                visitsList.innerHTML = '';
+                
+                visits.forEach(visit => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${visit.firstname} ${visit.lastname} navštívil/a ${visit.name} dne ${formatDate(visit.visit_date)}</span>
+                        <div class="actions">
+                            <button class="detail-btn" onclick="showVisitDetail(${visit.id})">Detail</button>
+                            <button class="delete-btn" onclick="deleteVisit(${visit.id})">Smazat</button>
+                        </div>
+                    `;
+                    visitsList.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Chyba při načítání návštěv:', error);
+            }
+        }
+        
+        // Funkce pro editaci návštěvníka
+        async function editVisitor(id) {
+            try {
+                const response = await fetch(`/api/visitors/${id}`);
+                const visitor = await response.json();
+                
+                document.getElementById('visitor-id').value = visitor.id;
+                document.getElementById('visitor-firstname').value = visitor.firstname;
+                document.getElementById('visitor-lastname').value = visitor.lastname;
+                
+                document.getElementById('visitor-submit').textContent = 'Aktualizovat návštěvníka';
+                document.getElementById('visitor-cancel').style.display = 'inline-block';
+            } catch (error) {
+                console.error('Chyba při načítání návštěvníka pro editaci:', error);
+            }
+        }
+        
+        // Funkce pro smazání návštěvníka
+        async function deleteVisitor(id) {
+            if (confirm('Opravdu chcete smazat tohoto návštěvníka?')) {
+                try {
+                    const response = await fetch(`/api/visitors/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        fetchVisitors();
+                    } else {
+                        alert('Chyba při mazání návštěvníka');
+                    }
+                } catch (error) {
+                    console.error('Chyba:', error);
+                }
+            }
+        }
+        
+        // Funkce pro editaci zvířete
+        async function editAnimal(id) {
+            try {
+                const response = await fetch(`/api/animals/${id}`);
+                const animal = await response.json();
+                
+                document.getElementById('animal-id').value = animal.id;
+                document.getElementById('animal-name').value = animal.name;
+                document.getElementById('animal-species').value = animal.species;
+                
+                document.getElementById('animal-submit').textContent = 'Aktualizovat zvíře';
+                document.getElementById('animal-cancel').style.display = 'inline-block';
+            } catch (error) {
+                console.error('Chyba při načítání zvířete pro editaci:', error);
+            }
+        }
+        
+        // Funkce pro smazání zvířete
+        async function deleteAnimal(id) {
+            if (confirm('Opravdu chcete smazat toto zvíře?')) {
+                try {
+                    const response = await fetch(`/api/animals/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        fetchAnimals();
+                    } else {
+                        alert('Chyba při mazání zvířete');
+                    }
+                } catch (error) {
+                    console.error('Chyba:', error);
+                }
+            }
+        }
+        
+        // Funkce pro smazání návštěvy
+        async function deleteVisit(id) {
+            if (confirm('Opravdu chcete smazat tuto návštěvu?')) {
+                try {
+                    const response = await fetch(`/api/visits/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        fetchVisits();
+                    } else {
+                        alert('Chyba při mazání návštěvy');
+                    }
+                } catch (error) {
+                    console.error('Chyba:', error);
+                }
+            }
+        }
+        
+        // Funkce pro zobrazení detailu návštěvníka
+        async function showVisitorDetail(id) {
+            try {
+                const response = await fetch(`/api/visitors/${id}`);
+                const visitor = await response.json();
+                
+                const detailTitle = document.getElementById('detail-title');
+                const detailContent = document.getElementById('detail-content');
+                
+                detailTitle.textContent = `Detail návštěvníka: ${visitor.firstname} ${visitor.lastname}`;
+                detailContent.innerHTML = `
+                    <div class="detail-item">
+                        <span class="detail-label">ID:</span>
+                        <span>${visitor.id}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Jméno:</span>
+                        <span>${visitor.firstname}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Příjmení:</span>
+                        <span>${visitor.lastname}</span>
+                    </div>
+                `;
+                
+                // Otevření modálního okna
+                const modal = document.getElementById('detail-modal');
+                modal.style.display = 'block';
+                setTimeout(() => {
+                    modal.classList.add('show');
+                }, 10);
+            } catch (error) {
+                console.error('Chyba při načítání detailu návštěvníka:', error);
+            }
+        }
+        
+        // Funkce pro zobrazení detailu zvířete
+        async function showAnimalDetail(id) {
+            try {
+                const response = await fetch(`/api/animals/${id}`);
+                const animal = await response.json();
+                
+                const detailTitle = document.getElementById('detail-title');
+                const detailContent = document.getElementById('detail-content');
+                
+                detailTitle.textContent = `Detail zvířete: ${animal.name}`;
+                detailContent.innerHTML = `
+                    <div class="detail-item">
+                        <span class="detail-label">ID:</span>
+                        <span>${animal.id}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Jméno:</span>
+                        <span>${animal.name}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Druh:</span>
+                        <span>${animal.species}</span>
+                    </div>
+                `;
+                
+                // Otevření modálního okna
+                const modal = document.getElementById('detail-modal');
+                modal.style.display = 'block';
+                setTimeout(() => {
+                    modal.classList.add('show');
+                }, 10);
+            } catch (error) {
+                console.error('Chyba při načítání detailu zvířete:', error);
+            }
+        }
+        
+        // Funkce pro zobrazení detailu návštěvy
+        async function showVisitDetail(id) {
+            try {
+                const response = await fetch(`/api/visits/${id}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const visit = await response.json();
+                
+                const detailTitle = document.getElementById('detail-title');
+                const detailContent = document.getElementById('detail-content');
+                
+                detailTitle.textContent = `Detail návštěvy`;
+                
+                // Kontrola, zda máme všechna potřebná data
+                if (visit && visit.firstname && visit.lastname && visit.name && visit.species) {
+                    detailContent.innerHTML = `
+                        <div class="detail-item">
+                            <span class="detail-label">ID:</span>
+                            <span>${visit.id}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Návštěvník:</span>
+                            <span>${visit.firstname} ${visit.lastname}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Zvíře:</span>
+                            <span>${visit.name} (${visit.species})</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Datum návštěvy:</span>
+                            <span>${formatDate(visit.visit_date)}</span>
+                        </div>
+                    `;
+                } else {
+                    // Pokud nemáme všechna data, zobrazíme jen to, co máme
+                    detailContent.innerHTML = `
+                        <div class="detail-item">
+                            <span class="detail-label">ID:</span>
+                            <span>${visit.id}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Návštěvník ID:</span>
+                            <span>${visit.visitor_id}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Zvíře ID:</span>
+                            <span>${visit.animal_id}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Datum návštěvy:</span>
+                            <span>${formatDate(visit.visit_date)}</span>
+                        </div>
+                        <p class="error-message">Některé detaily návštěvy nejsou k dispozici.</p>
+                    `;
+                }
+                
+                // Otevření modálního okna
+                const modal = document.getElementById('detail-modal');
+                modal.style.display = 'block';
+                setTimeout(() => {
+                    modal.classList.add('show');
+                }, 10);
+                
+                console.log('Detail návštěvy:', visit); // Pro ladění
+            } catch (error) {
+                console.error('Chyba při načítání detailu návštěvy:', error);
+                alert('Nepodařilo se načíst detail návštěvy. Zkontrolujte konzoli pro více informací.');
+            }
+        }
+        
+        // Inicializace
+        fetchVisitors();
+        fetchAnimals();
+        fetchVisits();
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

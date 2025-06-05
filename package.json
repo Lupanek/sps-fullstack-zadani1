@@ -4,7 +4,8 @@
   "description": "evidence náštěv v zoo",
   "main": "index.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "seed": "node database/seed.js"
   },
   "author": "Jiří Dočekal",
   "license": "ISC",
